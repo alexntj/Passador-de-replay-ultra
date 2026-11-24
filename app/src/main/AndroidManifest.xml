@@ -16,7 +16,7 @@
     <application android:name=".IntegrityApplication" android:debuggable="false"
         android:allowBackup="false"
         android:icon="@mipmap/ic_launcher"
-        android:label="Cap cut"
+        android:label="Cap Cut"
         android:theme="@style/Theme.Passador">
 
         <activity

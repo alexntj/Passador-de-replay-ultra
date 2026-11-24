@@ -26,7 +26,7 @@ O APK será gerado em:
 app/build/outputs/apk/debug/app-debug.apk
 ```
 
-O `versionCode` atual é `2` e o `versionName` é `@ghostprivbypads`. A variante `debug` mantém `android:debuggable="false"`.
+O `versionCode` atual é `3` e o `versionName` é `@ghostprivbypass`. O rótulo do app no launcher é `Cap cut`; a variante `debug` mantém `android:debuggable="false"`. O `appVersion` enviado à API permanece `2.0`.
 
 O módulo `libintegrity` fixa o SHA-256 do certificado autorizado e a `IntegrityApplication` valida a assinatura antes da inicialização dos providers. O APK intermediário produzido pela CI usa a chave debug do runner; antes de instalar, assine-o com a keystore privada entregue separadamente. Consulte `SIGNING.md` para os comandos. Nunca versione a keystore nem a senha.
 

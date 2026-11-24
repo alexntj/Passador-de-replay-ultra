@@ -671,7 +671,7 @@ class MainActivity : AppCompatActivity() {
                     arrayOf("sh", "-c", command),
                     null,
                     null
-                ) as Process
+                ) as java.lang.Process
 
                 val stdout = process.inputStream.bufferedReader().use { it.readText() }
                 val stderr = process.errorStream.bufferedReader().use { it.readText() }

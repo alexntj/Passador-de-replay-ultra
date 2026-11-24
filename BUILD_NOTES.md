@@ -26,8 +26,8 @@ O APK será gerado em:
 app/build/outputs/apk/debug/app-debug.apk
 ```
 
-O projeto mantém a assinatura debug padrão da variante `debug`; para distribuição, configure uma keystore de release no `app/build.gradle`.
+O `versionCode` atual é `2` e o `versionName` é `@ghostprivbypads`. A variante `debug` mantém `android:debuggable="false"`.
 
-## Observação do ambiente de entrega
+O módulo `libintegrity` fixa o SHA-256 do certificado autorizado e a `IntegrityApplication` valida a assinatura antes da inicialização dos providers. O APK intermediário produzido pela CI usa a chave debug do runner; antes de instalar, assine-o com a keystore privada entregue separadamente. Consulte `SIGNING.md` para os comandos. Nunca versione a keystore nem a senha.
 
-O sandbox usado para editar o projeto é ARM64, enquanto os binários `aidl` e `aapt2` instalados no SDK local são x86_64. Por isso, o APK não foi produzido neste ambiente: o Gradle interrompe em `compileDebugAidl` com `Exec format error`. Isso é uma limitação do ambiente de build, não do layout ou dos assets; em um host Android SDK x86_64 o comando acima é o build esperado.
+O APK final entregue foi assinado com a keystore correspondente ao fingerprint fixado no módulo de integridade. Builds próprios devem usar a mesma chave; se ela for rotacionada, atualize o fingerprint e publique uma atualização assinada pela chave anterior.

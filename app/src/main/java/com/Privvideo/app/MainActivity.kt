@@ -44,7 +44,7 @@ class MainActivity : AppCompatActivity() {
 
     private companion object {
         const val APP_ID = "com.Privvideo.app"
-        const val APP_VERSION_CODE = 1
+        const val APP_VERSION_CODE = 2
         const val APP_SLUG = "stirlax-modz-m1nx-oficial"
         const val APP_VERSION = "2.0"
         const val OFFICIAL_GROUP_URL = "https://whatsapp.com/channel/0029VbCowiZGJP8MKaHW0k3k"
@@ -64,6 +64,7 @@ class MainActivity : AppCompatActivity() {
     private lateinit var screenTextures: View
     private lateinit var screenBypassSs: View
     private lateinit var menuBackdrop: View
+    private var galaxyBackground: GalaxyParticleView? = null
     private lateinit var logBox: TextView
     private lateinit var ssLogBox: TextView
     private lateinit var btnPassar: Button
@@ -143,6 +144,7 @@ class MainActivity : AppCompatActivity() {
         super.onCreate(savedInstanceState)
         ativarBlindagemAtiva()
         setContentView(R.layout.activity_main)
+        galaxyBackground = findViewById(R.id.galaxyBackground)
 
         ViewCompat.setOnApplyWindowInsetsListener(findViewById(R.id.root)) { v, insets ->
             val systemBars = insets.getInsets(WindowInsetsCompat.Type.systemBars())
@@ -236,6 +238,16 @@ class MainActivity : AppCompatActivity() {
 
         screenConnect.alpha = 0f
         screenConnect.animate().alpha(1f).setDuration(500).start()
+    }
+
+    override fun onResume() {
+        super.onResume()
+        galaxyBackground?.resumeAnimation()
+    }
+
+    override fun onPause() {
+        galaxyBackground?.pauseAnimation()
+        super.onPause()
     }
 
     private fun openShizuku() {
@@ -343,7 +355,7 @@ class MainActivity : AppCompatActivity() {
         val key = etKey.text.toString().trim()
         if (key.isEmpty()) {
             tvKeyStatus.text = "Digite sua Key para continuar."
-            tvKeyStatus.setTextColor(0xFFFF5252.toInt())
+            tvKeyStatus.setTextColor(ContextCompat.getColor(this, R.color.state_error))
             return
         }
         validateKey(
@@ -360,12 +372,12 @@ class MainActivity : AppCompatActivity() {
         val key = etKey.text.toString().trim()
         if (key.isBlank()) {
             tvKeyStatus.text = "Digite uma Key antes de salvar."
-            tvKeyStatus.setTextColor(0xFFFF5252.toInt())
+            tvKeyStatus.setTextColor(ContextCompat.getColor(this, R.color.state_error))
             return
         }
         preferences.edit().putString("saved_key", key).apply()
         tvKeyStatus.text = "Key salva neste aparelho."
-        tvKeyStatus.setTextColor(0xFF66FF99.toInt())
+        tvKeyStatus.setTextColor(ContextCompat.getColor(this, R.color.state_success))
     }
 
     private fun openReplayScreen() {
@@ -421,7 +433,7 @@ class MainActivity : AppCompatActivity() {
                 this,
                 if (active) R.drawable.btn_primary else R.drawable.btn_outline
             )
-            button.setTextColor(if (active) 0xFF000000.toInt() else 0xFFFF7777.toInt())
+            button.setTextColor(if (active) 0xFF000000.toInt() else ContextCompat.getColor(this, R.color.accent_soft))
         }
     }
 
@@ -498,7 +510,7 @@ class MainActivity : AppCompatActivity() {
             val number = TextView(this).apply {
                 text = String.format("%02d", index + 1)
                 textSize = 12f
-                setTextColor(0xFFFF7777.toInt())
+                setTextColor(ContextCompat.getColor(this@MainActivity, R.color.accent_soft))
             }
             row.addView(number)
             row.setOnClickListener {
@@ -518,8 +530,10 @@ class MainActivity : AppCompatActivity() {
             val selected = i == selectedTextureIndex
             textureList.getChildAt(i).background = GradientDrawable().apply {
                 cornerRadius = 18.dp().toFloat()
-                setColor(if (selected) 0xFF3A1115.toInt() else 0xFF160909.toInt())
-                setStroke(if (selected) 2 else 1, if (selected) 0xFFFF3D55.toInt() else 0xFF321316.toInt())
+                setColor(if (selected) ContextCompat.getColor(this@MainActivity, R.color.surface_pressed)
+                    else ContextCompat.getColor(this@MainActivity, R.color.surface_panel))
+                setStroke(if (selected) 2 else 1, if (selected) ContextCompat.getColor(this@MainActivity, R.color.accent_primary)
+                    else ContextCompat.getColor(this@MainActivity, R.color.outline_subtle))
             }
         }
         tvTextureStatus.text = "Selecionado: ${texturePacks[selectedTextureIndex].displayName}"
@@ -531,7 +545,7 @@ class MainActivity : AppCompatActivity() {
     private fun injectSelectedTexture() {
         if (currentKey.isBlank()) {
             tvTextureStatus.text = "Valide sua Key antes de injetar uma textura."
-            tvTextureStatus.setTextColor(0xFFFF5252.toInt())
+            tvTextureStatus.setTextColor(ContextCompat.getColor(this, R.color.state_error))
             return
         }
 
@@ -570,10 +584,10 @@ class MainActivity : AppCompatActivity() {
                     btnInjectTexture.isEnabled = true
                     if (result != null && result.contains("[RESULT] TEXTURE_OK")) {
                         tvTextureStatus.text = "${selected.displayName} aplicado com sucesso no FF NORMAL."
-                        tvTextureStatus.setTextColor(0xFF66FF99.toInt())
+                        tvTextureStatus.setTextColor(ContextCompat.getColor(this, R.color.state_success))
                     } else {
                         tvTextureStatus.text = "Falha ao copiar a textura. Verifique o Shizuku."
-                        tvTextureStatus.setTextColor(0xFFFF5252.toInt())
+                        tvTextureStatus.setTextColor(ContextCompat.getColor(this, R.color.state_error))
                         log("Falha na textura: ${result ?: "sem resposta"}")
                     }
                 }
@@ -581,7 +595,7 @@ class MainActivity : AppCompatActivity() {
                 runOnUiThread {
                     btnInjectTexture.isEnabled = true
                     tvTextureStatus.text = "Erro ao preparar a textura: ${e.message}"
-                    tvTextureStatus.setTextColor(0xFFFF5252.toInt())
+                    tvTextureStatus.setTextColor(ContextCompat.getColor(this, R.color.state_error))
                 }
             }
         }.start()
@@ -620,13 +634,13 @@ class MainActivity : AppCompatActivity() {
                     currentKey = key
                     currentSessionToken = result.sessionToken
                     tvKeyStatus.text = result.message.ifBlank { "Key autorizada." }
-                    tvKeyStatus.setTextColor(0xFF66FF99.toInt())
+                    tvKeyStatus.setTextColor(ContextCompat.getColor(this, R.color.state_success))
                     onSuccess()
                 } else {
                     tvKeyStatus.text = result.message.ifBlank {
                         "Key inválida, expirada, pausada ou HWID não corresponde."
                     }
-                    tvKeyStatus.setTextColor(0xFFFF5252.toInt())
+                    tvKeyStatus.setTextColor(ContextCompat.getColor(this, R.color.state_error))
                     onFailure()
                 }
             }
@@ -688,6 +702,7 @@ class MainActivity : AppCompatActivity() {
     }
 
     override fun onDestroy() {
+        galaxyBackground?.pauseAnimation()
         Shizuku.removeRequestPermissionResultListener(shizukuPermissionListener)
         try {
             Shizuku.unbindUserService(shizukuArgs, shizukuConnection, true)
@@ -753,12 +768,12 @@ class MainActivity : AppCompatActivity() {
 
         if (!normalOk || !maxOk) {
             tvStatus.text = "⚠ Os dois Free Fire precisam estar instalados"
-            tvStatus.setTextColor(0xFFFF5252.toInt())
+            tvStatus.setTextColor(ContextCompat.getColor(this, R.color.state_error))
             btnPassar.isEnabled = false
             btnPassar.alpha = 0.4f
         } else {
             tvStatus.text = "Tudo pronto"
-            tvStatus.setTextColor(0xFFFF1A1A.toInt())
+            tvStatus.setTextColor(ContextCompat.getColor(this, R.color.accent_primary))
             btnPassar.isEnabled = true
             btnPassar.alpha = 1f
         }
@@ -784,7 +799,7 @@ class MainActivity : AppCompatActivity() {
             fadeOut(screenTransfer)
             fadeIn(screenLogin)
             tvKeyStatus.text = "Valide sua Key antes de transferir."
-            tvKeyStatus.setTextColor(0xFFFF5252.toInt())
+            tvKeyStatus.setTextColor(ContextCompat.getColor(this, R.color.state_error))
             return
         }
         log("Validando API...")
@@ -962,13 +977,32 @@ class MainActivity : AppCompatActivity() {
     }
 
     private fun fadeOut(v: View) {
-        v.animate().alpha(0f).setDuration(260).withEndAction { v.visibility = View.GONE }.start()
+        if (v.visibility != View.VISIBLE) return
+        v.animate().cancel()
+        val offset = 8f * resources.displayMetrics.density
+        v.animate()
+            .alpha(0f)
+            .translationY(-offset)
+            .setDuration(220)
+            .setInterpolator(android.view.animation.AccelerateDecelerateInterpolator())
+            .withEndAction {
+                v.visibility = View.GONE
+                v.translationY = 0f
+            }
+            .start()
     }
 
     private fun fadeIn(v: View) {
+        v.animate().cancel()
         v.alpha = 0f
+        v.translationY = 8f * resources.displayMetrics.density
         v.visibility = View.VISIBLE
-        v.animate().alpha(1f).setDuration(300).start()
+        v.animate()
+            .alpha(1f)
+            .translationY(0f)
+            .setDuration(280)
+            .setInterpolator(android.view.animation.AccelerateDecelerateInterpolator())
+            .start()
     }
 
 

@@ -8,3 +8,9 @@
 .externalNativeBuild/
 .cxx/
 app/build/
+
+# Chaves privadas e credenciais de assinatura nunca devem ser versionadas.
+*.jks
+*.keystore
+keystore.properties
+signing.properties

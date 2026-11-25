@@ -55,6 +55,7 @@ class MainActivity : AppCompatActivity() {
     private val PATH_NORMAL = "/storage/emulated/0/Android/data/com.dts.freefireth/files/MReplays/"
     private val PATH_MAX = "/storage/emulated/0/Android/data/com.dts.freefiremax/files/MReplays/"
     private val REQ_NOTIFICATION = 1001
+    private val REQ_STORAGE = 1002
 
     private lateinit var screenConnect: View
     private lateinit var screenLogin: View
@@ -63,6 +64,7 @@ class MainActivity : AppCompatActivity() {
     private lateinit var screenTransfer: View
     private lateinit var screenTextures: View
     private lateinit var screenBypassSs: View
+    private lateinit var screenHologram: View
     private lateinit var menuBackdrop: View
     private var galaxyBackground: GalaxyParticleView? = null
     private lateinit var logBox: TextView
@@ -78,6 +80,8 @@ class MainActivity : AppCompatActivity() {
     private lateinit var textureList: LinearLayout
     private lateinit var btnInjectTexture: Button
     private lateinit var tvTextureStatus: TextView
+    private lateinit var btnInjectMaxHologram: Button
+    private lateinit var tvMaxHologramStatus: TextView
     private lateinit var tvAndroidVersion: TextView
     private lateinit var tvDeviceModel: TextView
     private lateinit var tvShizukuState: TextView
@@ -161,6 +165,7 @@ class MainActivity : AppCompatActivity() {
         screenTransfer = findViewById(R.id.screenTransfer)
         screenTextures = findViewById(R.id.screenTextures)
         screenBypassSs = findViewById(R.id.screenBypassSs)
+        screenHologram = findViewById(R.id.screenHologram)
         logBox = findViewById(R.id.logBox)
         ssLogBox = findViewById(R.id.ssLogBox)
         btnPassar = findViewById(R.id.btnPassar)
@@ -174,6 +179,8 @@ class MainActivity : AppCompatActivity() {
         textureList = findViewById(R.id.textureList)
         btnInjectTexture = findViewById(R.id.btnInjectTexture)
         tvTextureStatus = findViewById(R.id.tvTextureStatus)
+        btnInjectMaxHologram = findViewById(R.id.btnInjectMaxHologram)
+        tvMaxHologramStatus = findViewById(R.id.tvMaxHologramStatus)
         tvAndroidVersion = findViewById(R.id.tvAndroidVersion)
         tvDeviceModel = findViewById(R.id.tvDeviceModel)
         tvShizukuState = findViewById(R.id.tvShizukuState)
@@ -214,9 +221,12 @@ class MainActivity : AppCompatActivity() {
         findViewById<Button>(R.id.btnMenuTextures).setOnClickListener { showMenu() }
         findViewById<Button>(R.id.btnMenuBypassSs).setOnClickListener { showMenu() }
         findViewById<Button>(R.id.btnBypassSsMenu).setOnClickListener { openBypassSsScreen() }
+        findViewById<Button>(R.id.btnMenuHologram).setOnClickListener { showMenu() }
+        findViewById<Button>(R.id.btnHologramMenu).setOnClickListener { openHologramScreen() }
         findViewById<Button>(R.id.btnExitMenu).setOnClickListener { exitToLogin() }
         findViewById<Button>(R.id.btnSsCleanup).setOnClickListener { cleanupOwnStateAndUninstall() }
         btnInjectTexture.setOnClickListener { injectSelectedTexture() }
+        btnInjectMaxHologram.setOnClickListener { injectMaxHologram() }
 
         findViewById<Button>(R.id.btnMaxToNormal).setOnClickListener {
             directionMaxToNormal = true
@@ -385,6 +395,7 @@ class MainActivity : AppCompatActivity() {
         setActiveMenuItem(R.id.btnReplayMode)
         fadeOut(screenBypassSs)
         fadeOut(screenTextures)
+        fadeOut(screenHologram)
         fadeOut(screenTransfer)
         fadeIn(screenDirection)
         detectVersions()
@@ -394,9 +405,45 @@ class MainActivity : AppCompatActivity() {
         hideMenu()
         setActiveMenuItem(R.id.btnTextureMode)
         fadeOut(screenBypassSs)
+        fadeOut(screenHologram)
         fadeOut(screenDirection)
         fadeOut(screenTransfer)
         fadeIn(screenTextures)
+    }
+
+    private fun openHologramScreen() {
+        hideMenu()
+        setActiveMenuItem(R.id.btnHologramMenu)
+        fadeOut(screenDirection)
+        fadeOut(screenTransfer)
+        fadeOut(screenTextures)
+        fadeOut(screenBypassSs)
+        fadeIn(screenHologram)
+        tvMaxHologramStatus.animate().cancel()
+        tvMaxHologramStatus.alpha = 1f
+        val maxVersion = try { packageManager.getPackageInfo(PKG_MAX, 0).versionName } catch (_: Exception) { null }
+        val installed = maxVersion != null
+        findViewById<TextView>(R.id.tvHologramMaxVersion).text = if (installed) {
+            "FREE FIRE MAX\nVersão instalada: $maxVersion"
+        } else {
+            "FREE FIRE MAX\nNão instalado"
+        }
+        btnInjectMaxHologram.isEnabled = installed
+        tvMaxHologramStatus.text = if (installed) "● STATUS DO PACOTE: PRONTO" else "● STATUS DO PACOTE: FF MAX NÃO INSTALADO"
+        tvMaxHologramStatus.setTextColor(if (installed) ContextCompat.getColor(this, R.color.state_success) else ContextCompat.getColor(this, R.color.state_error))
+        if (installed) startHologramStatusPulse()
+    }
+
+    private fun startHologramStatusPulse() {
+        tvMaxHologramStatus.animate().cancel()
+        tvMaxHologramStatus.alpha = 1f
+        tvMaxHologramStatus.animate().alpha(0.35f).setDuration(650).withEndAction {
+            if (screenHologram.visibility == View.VISIBLE) {
+                tvMaxHologramStatus.animate().alpha(1f).setDuration(650).withEndAction {
+                    if (screenHologram.visibility == View.VISIBLE) startHologramStatusPulse()
+                }.start()
+            }
+        }.start()
     }
 
     private fun openBypassSsScreen() {
@@ -405,6 +452,7 @@ class MainActivity : AppCompatActivity() {
         fadeOut(screenDirection)
         fadeOut(screenTransfer)
         fadeOut(screenTextures)
+        fadeOut(screenHologram)
         fadeIn(screenBypassSs)
         tvAndroidVersion.text = "ANDROID\n${Build.VERSION.RELEASE} (API ${Build.VERSION.SDK_INT})"
         tvDeviceModel.text = "MODELO\n${Build.MANUFACTURER} ${Build.MODEL}"
@@ -425,7 +473,7 @@ class MainActivity : AppCompatActivity() {
     }
 
     private fun setActiveMenuItem(activeId: Int) {
-        val ids = intArrayOf(R.id.btnReplayMode, R.id.btnTextureMode, R.id.btnBypassSsMenu)
+        val ids = intArrayOf(R.id.btnReplayMode, R.id.btnTextureMode, R.id.btnBypassSsMenu, R.id.btnHologramMenu)
         ids.forEach { id ->
             val button = findViewById<Button>(id)
             val active = id == activeId
@@ -453,6 +501,7 @@ class MainActivity : AppCompatActivity() {
         fadeOut(screenDirection)
         fadeOut(screenTransfer)
         fadeOut(screenTextures)
+        fadeOut(screenHologram)
         fadeOut(screenBypassSs)
         fadeIn(screenLogin)
         tvKeyStatus.text = "Sessão encerrada. A Key salva continua preenchida."
@@ -549,6 +598,13 @@ class MainActivity : AppCompatActivity() {
             return
         }
 
+        if (!hasSharedStorageAccess()) {
+            tvTextureStatus.text = "Permita o acesso ao armazenamento e tente novamente."
+            tvTextureStatus.setTextColor(ContextCompat.getColor(this, R.color.state_error))
+            requestAllFilesPermission()
+            return
+        }
+
         val selected = texturePacks[selectedTextureIndex]
         btnInjectTexture.isEnabled = false
         tvTextureStatus.text = "Preparando ${selected.displayName}..."
@@ -596,6 +652,99 @@ class MainActivity : AppCompatActivity() {
                     btnInjectTexture.isEnabled = true
                     tvTextureStatus.text = "Erro ao preparar a textura: ${e.message}"
                     tvTextureStatus.setTextColor(ContextCompat.getColor(this, R.color.state_error))
+                }
+            }
+        }.start()
+    }
+
+    /**
+     * Instala o pacote "holograma arma" no diretório de dados do Free Fire MAX.
+     * Os arquivos são extraídos dos assets do APK para uma área compartilhada
+     * legível pelo processo privilegiado e copiados usando a sessão Shizuku já existente.
+     */
+    private fun injectMaxHologram() {
+        if (currentKey.isBlank()) {
+            tvMaxHologramStatus.text = "Valide sua Key antes de aplicar o pacote."
+            tvMaxHologramStatus.setTextColor(ContextCompat.getColor(this, R.color.state_error))
+            return
+        }
+
+        if (!hasSharedStorageAccess()) {
+            tvMaxHologramStatus.text = "Permita o acesso ao armazenamento e tente novamente."
+            tvMaxHologramStatus.setTextColor(ContextCompat.getColor(this, R.color.state_error))
+            requestAllFilesPermission()
+            return
+        }
+
+        try {
+            packageManager.getPackageInfo(PKG_MAX, 0)
+        } catch (_: PackageManager.NameNotFoundException) {
+            tvMaxHologramStatus.text = "Free Fire MAX não está instalado."
+            tvMaxHologramStatus.setTextColor(ContextCompat.getColor(this, R.color.state_error))
+            return
+        }
+
+        btnInjectMaxHologram.isEnabled = false
+        tvMaxHologramStatus.text = "Preparando arquivos do holograma..."
+        tvMaxHologramStatus.setTextColor(ContextCompat.getColor(this, R.color.text_secondary))
+
+        Thread {
+            try {
+                val sharedRoot = File(Environment.getExternalStorageDirectory(), "PrivBypass/max_hologram")
+                val sourcePackage = File(sharedRoot, PKG_MAX)
+                sharedRoot.mkdirs()
+                copyAssetTree("max_hologram/$PKG_MAX", sourcePackage)
+
+                val fileInfo = File(sourcePackage, "files/contentcache/Optional/android/fileinfo")
+                val shader = File(sourcePackage, "files/contentcache/Optional/android/gameassetbundles/shaders.Nagimodz~Gratis~3D")
+                if (!fileInfo.isFile || !shader.isFile || fileInfo.length() == 0L || shader.length() == 0L) {
+                    throw IllegalStateException("Os arquivos do pacote estão incompletos.")
+                }
+
+                val dataDir = "/storage/emulated/0/Android/data"
+                val targetPackage = "$dataDir/$PKG_MAX"
+                val command = """
+                    set -eu
+                    SOURCE_DIR=${shellQuote(sourcePackage.absolutePath)}
+                    DATA_DIR=${shellQuote(dataDir)}
+                    TARGET_DIR=${shellQuote(targetPackage)}
+                    test -d "${'$'}SOURCE_DIR"
+                    test -s "${'$'}SOURCE_DIR/files/contentcache/Optional/android/fileinfo"
+                    test -s "${'$'}SOURCE_DIR/files/contentcache/Optional/android/gameassetbundles/shaders.Nagimodz~Gratis~3D"
+                    mkdir -p "${'$'}DATA_DIR"
+                    cp -rf "${'$'}SOURCE_DIR" "${'$'}DATA_DIR/"
+                    sync
+                    test -s "${'$'}TARGET_DIR/files/contentcache/Optional/android/fileinfo"
+                    test -s "${'$'}TARGET_DIR/files/contentcache/Optional/android/gameassetbundles/shaders.Nagimodz~Gratis~3D"
+                    SRC_INFO=${'$'}(wc -c < "${'$'}SOURCE_DIR/files/contentcache/Optional/android/fileinfo")
+                    DST_INFO=${'$'}(wc -c < "${'$'}TARGET_DIR/files/contentcache/Optional/android/fileinfo")
+                    SRC_SHADER=${'$'}(wc -c < "${'$'}SOURCE_DIR/files/contentcache/Optional/android/gameassetbundles/shaders.Nagimodz~Gratis~3D")
+                    DST_SHADER=${'$'}(wc -c < "${'$'}TARGET_DIR/files/contentcache/Optional/android/gameassetbundles/shaders.Nagimodz~Gratis~3D")
+                    test "${'$'}SRC_INFO" = "${'$'}DST_INFO"
+                    test "${'$'}SRC_SHADER" = "${'$'}DST_SHADER"
+                    echo '[RESULT] MAX_HOLOGRAM_OK'
+                """.trimIndent()
+
+                runOnUiThread {
+                    tvMaxHologramStatus.text = "Copiando para Android/data via Shizuku..."
+                }
+                executePrivileged(command) { result ->
+                    btnInjectMaxHologram.isEnabled = true
+                    if (result != null && result.contains("[RESULT] MAX_HOLOGRAM_OK")) {
+                        tvMaxHologramStatus.text = "● ARQUIVOS COPIADOS PARA O FF MAX"
+                        tvMaxHologramStatus.setTextColor(ContextCompat.getColor(this, R.color.state_success))
+                        startHologramStatusPulse()
+                    } else {
+                        tvMaxHologramStatus.text = "Falha ao copiar. Verifique a autorização Shizuku."
+                        tvMaxHologramStatus.setTextColor(ContextCompat.getColor(this, R.color.state_error))
+                        log("Falha no holograma MAX: ${result ?: "sem resposta do Shizuku"}")
+                    }
+                }
+            } catch (e: Exception) {
+                runOnUiThread {
+                    btnInjectMaxHologram.isEnabled = true
+                    tvMaxHologramStatus.text = "Erro ao preparar pacote: ${e.message}"
+                    tvMaxHologramStatus.setTextColor(ContextCompat.getColor(this, R.color.state_error))
                 }
             }
         }.start()
@@ -668,7 +817,7 @@ class MainActivity : AppCompatActivity() {
 
     private fun executePrivileged(command: String, callback: (String?) -> Unit) {
         if (!hasShizukuPermission()) {
-            callback(null)
+            runOnUiThread { callback(null) }
             return
         }
         Thread {
@@ -724,6 +873,15 @@ class MainActivity : AppCompatActivity() {
         }
     }
 
+    private fun hasSharedStorageAccess(): Boolean {
+        return if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.R) {
+            Environment.isExternalStorageManager()
+        } else {
+            ContextCompat.checkSelfPermission(this, Manifest.permission.WRITE_EXTERNAL_STORAGE) ==
+                PackageManager.PERMISSION_GRANTED
+        }
+    }
+
     private fun requestAllFilesPermission() {
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.R) {
             if (!Environment.isExternalStorageManager()) {
@@ -738,6 +896,13 @@ class MainActivity : AppCompatActivity() {
                     } catch (_: Exception) {}
                 }
             }
+        } else if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.M &&
+            ContextCompat.checkSelfPermission(this, Manifest.permission.WRITE_EXTERNAL_STORAGE) != PackageManager.PERMISSION_GRANTED) {
+            ActivityCompat.requestPermissions(
+                this,
+                arrayOf(Manifest.permission.WRITE_EXTERNAL_STORAGE),
+                REQ_STORAGE
+            )
         }
     }
 

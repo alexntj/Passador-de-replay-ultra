@@ -1,5 +1,7 @@
 package com.Privvideo.app
 
+import android.animation.ObjectAnimator
+import android.animation.ValueAnimator
 import android.Manifest
 import android.content.ComponentName
 import android.content.Intent
@@ -82,6 +84,10 @@ class MainActivity : AppCompatActivity() {
     private lateinit var tvTextureStatus: TextView
     private lateinit var btnInjectMaxHologram: Button
     private lateinit var tvMaxHologramStatus: TextView
+    private lateinit var hologramSafeIndicator: View
+    private lateinit var hologramLogBox: TextView
+    private lateinit var hologramLogScroll: ScrollView
+    private var hologramIndicatorAnimator: ObjectAnimator? = null
     private lateinit var tvAndroidVersion: TextView
     private lateinit var tvDeviceModel: TextView
     private lateinit var tvShizukuState: TextView
@@ -181,6 +187,9 @@ class MainActivity : AppCompatActivity() {
         tvTextureStatus = findViewById(R.id.tvTextureStatus)
         btnInjectMaxHologram = findViewById(R.id.btnInjectMaxHologram)
         tvMaxHologramStatus = findViewById(R.id.tvMaxHologramStatus)
+        hologramSafeIndicator = findViewById(R.id.hologramSafeIndicator)
+        hologramLogBox = findViewById(R.id.hologramLogBox)
+        hologramLogScroll = findViewById(R.id.hologramLogScroll)
         tvAndroidVersion = findViewById(R.id.tvAndroidVersion)
         tvDeviceModel = findViewById(R.id.tvDeviceModel)
         tvShizukuState = findViewById(R.id.tvShizukuState)
@@ -253,10 +262,14 @@ class MainActivity : AppCompatActivity() {
     override fun onResume() {
         super.onResume()
         galaxyBackground?.resumeAnimation()
+        if (this::screenHologram.isInitialized && screenHologram.visibility == View.VISIBLE) {
+            startHologramIndicatorPulse()
+        }
     }
 
     override fun onPause() {
         galaxyBackground?.pauseAnimation()
+        stopHologramIndicatorPulse()
         super.onPause()
     }
 
@@ -418,9 +431,7 @@ class MainActivity : AppCompatActivity() {
         fadeOut(screenTransfer)
         fadeOut(screenTextures)
         fadeOut(screenBypassSs)
-        fadeIn(screenHologram)
-        tvMaxHologramStatus.animate().cancel()
-        tvMaxHologramStatus.alpha = 1f
+        animateHologramEntry()
         val maxVersion = try { packageManager.getPackageInfo(PKG_MAX, 0).versionName } catch (_: Exception) { null }
         val installed = maxVersion != null
         findViewById<TextView>(R.id.tvHologramMaxVersion).text = if (installed) {
@@ -429,21 +440,42 @@ class MainActivity : AppCompatActivity() {
             "FREE FIRE MAX\nNão instalado"
         }
         btnInjectMaxHologram.isEnabled = installed
-        tvMaxHologramStatus.text = if (installed) "● STATUS DO PACOTE: PRONTO" else "● STATUS DO PACOTE: FF MAX NÃO INSTALADO"
+        tvMaxHologramStatus.text = if (installed) "STATUS DO PACOTE: PRONTO" else "STATUS DO PACOTE: FF MAX NÃO INSTALADO"
         tvMaxHologramStatus.setTextColor(if (installed) ContextCompat.getColor(this, R.color.state_success) else ContextCompat.getColor(this, R.color.state_error))
-        if (installed) startHologramStatusPulse()
+        startHologramIndicatorPulse()
+        appendHologramLog("Tela holograma safe aberta.")
+        appendHologramLog(if (installed) "Free Fire MAX detectado: versão $maxVersion." else "Free Fire MAX não está instalado neste dispositivo.")
     }
 
-    private fun startHologramStatusPulse() {
-        tvMaxHologramStatus.animate().cancel()
-        tvMaxHologramStatus.alpha = 1f
-        tvMaxHologramStatus.animate().alpha(0.35f).setDuration(650).withEndAction {
-            if (screenHologram.visibility == View.VISIBLE) {
-                tvMaxHologramStatus.animate().alpha(1f).setDuration(650).withEndAction {
-                    if (screenHologram.visibility == View.VISIBLE) startHologramStatusPulse()
-                }.start()
-            }
-        }.start()
+    private fun startHologramIndicatorPulse() {
+        if (!this::hologramSafeIndicator.isInitialized || screenHologram.visibility != View.VISIBLE) return
+        hologramIndicatorAnimator?.cancel()
+        hologramSafeIndicator.alpha = 1f
+        hologramIndicatorAnimator = ObjectAnimator.ofFloat(hologramSafeIndicator, View.ALPHA, 1f, 0.28f).apply {
+            duration = 620L
+            repeatMode = ValueAnimator.REVERSE
+            repeatCount = ValueAnimator.INFINITE
+            start()
+        }
+    }
+
+    private fun stopHologramIndicatorPulse() {
+        hologramIndicatorAnimator?.cancel()
+        hologramIndicatorAnimator = null
+        if (this::hologramSafeIndicator.isInitialized) hologramSafeIndicator.alpha = 1f
+    }
+
+    private fun animateHologramEntry() {
+        screenHologram.animate().cancel()
+        screenHologram.alpha = 0f
+        screenHologram.translationY = 14f * resources.displayMetrics.density
+        screenHologram.visibility = View.VISIBLE
+        screenHologram.animate()
+            .alpha(1f)
+            .translationY(0f)
+            .setDuration(320L)
+            .setInterpolator(android.view.animation.DecelerateInterpolator())
+            .start()
     }
 
     private fun openBypassSsScreen() {
@@ -663,15 +695,19 @@ class MainActivity : AppCompatActivity() {
      * legível pelo processo privilegiado e copiados usando a sessão Shizuku já existente.
      */
     private fun injectMaxHologram() {
+        animateHologramButtonPress()
+        appendHologramLog("Toque em INJETAR recebido.")
         if (currentKey.isBlank()) {
             tvMaxHologramStatus.text = "Valide sua Key antes de aplicar o pacote."
             tvMaxHologramStatus.setTextColor(ContextCompat.getColor(this, R.color.state_error))
+            appendHologramLog("Falha: nenhuma Key validada nesta sessão.")
             return
         }
 
         if (!hasSharedStorageAccess()) {
             tvMaxHologramStatus.text = "Permita o acesso ao armazenamento e tente novamente."
             tvMaxHologramStatus.setTextColor(ContextCompat.getColor(this, R.color.state_error))
+            appendHologramLog("Aguardando permissão de acesso ao armazenamento compartilhado.")
             requestAllFilesPermission()
             return
         }
@@ -681,17 +717,20 @@ class MainActivity : AppCompatActivity() {
         } catch (_: PackageManager.NameNotFoundException) {
             tvMaxHologramStatus.text = "Free Fire MAX não está instalado."
             tvMaxHologramStatus.setTextColor(ContextCompat.getColor(this, R.color.state_error))
+            appendHologramLog("Falha: Free Fire MAX não está instalado.")
             return
         }
 
         btnInjectMaxHologram.isEnabled = false
         tvMaxHologramStatus.text = "Preparando arquivos do holograma..."
         tvMaxHologramStatus.setTextColor(ContextCompat.getColor(this, R.color.text_secondary))
+        appendHologramLog("Validações concluídas; iniciando preparação dos arquivos.")
 
         Thread {
             try {
                 val sharedRoot = File(Environment.getExternalStorageDirectory(), "PrivBypass/max_hologram")
                 val sourcePackage = File(sharedRoot, PKG_MAX)
+                appendHologramLog("Extraindo os assets do pacote para o armazenamento compartilhado.")
                 sharedRoot.mkdirs()
                 copyAssetTree("max_hologram/$PKG_MAX", sourcePackage)
 
@@ -700,6 +739,7 @@ class MainActivity : AppCompatActivity() {
                 if (!fileInfo.isFile || !shader.isFile || fileInfo.length() == 0L || shader.length() == 0L) {
                     throw IllegalStateException("Os arquivos do pacote estão incompletos.")
                 }
+                appendHologramLog("Assets extraídos e arquivos obrigatórios verificados.")
 
                 val dataDir = "/storage/emulated/0/Android/data"
                 val targetPackage = "$dataDir/$PKG_MAX"
@@ -728,16 +768,18 @@ class MainActivity : AppCompatActivity() {
                 runOnUiThread {
                     tvMaxHologramStatus.text = "Copiando para Android/data via Shizuku..."
                 }
+                appendHologramLog("Enviando a cópia para Android/data usando Shizuku.")
                 executePrivileged(command) { result ->
                     btnInjectMaxHologram.isEnabled = true
                     if (result != null && result.contains("[RESULT] MAX_HOLOGRAM_OK")) {
-                        tvMaxHologramStatus.text = "● ARQUIVOS COPIADOS PARA O FF MAX"
+                        tvMaxHologramStatus.text = "ARQUIVOS COPIADOS PARA O FF MAX"
                         tvMaxHologramStatus.setTextColor(ContextCompat.getColor(this, R.color.state_success))
-                        startHologramStatusPulse()
+                        appendHologramLog("Sucesso: arquivos copiados e tamanhos conferidos no destino.")
                     } else {
                         tvMaxHologramStatus.text = "Falha ao copiar. Verifique a autorização Shizuku."
                         tvMaxHologramStatus.setTextColor(ContextCompat.getColor(this, R.color.state_error))
-                        log("Falha no holograma MAX: ${result ?: "sem resposta do Shizuku"}")
+                        val detail = result?.trim()?.takeLast(180)?.takeIf { it.isNotBlank() } ?: "sem resposta do Shizuku"
+                        appendHologramLog("Falha na cópia via Shizuku: $detail")
                     }
                 }
             } catch (e: Exception) {
@@ -746,8 +788,38 @@ class MainActivity : AppCompatActivity() {
                     tvMaxHologramStatus.text = "Erro ao preparar pacote: ${e.message}"
                     tvMaxHologramStatus.setTextColor(ContextCompat.getColor(this, R.color.state_error))
                 }
+                appendHologramLog("Erro ao preparar o pacote: ${e.message ?: e.javaClass.simpleName}")
             }
         }.start()
+    }
+
+    private fun animateHologramButtonPress() {
+        btnInjectMaxHologram.animate().cancel()
+        btnInjectMaxHologram.animate()
+            .scaleX(0.97f)
+            .scaleY(0.97f)
+            .setDuration(75L)
+            .setInterpolator(android.view.animation.DecelerateInterpolator())
+            .withEndAction {
+                btnInjectMaxHologram.animate()
+                    .scaleX(1f)
+                    .scaleY(1f)
+                    .setDuration(180L)
+                    .setInterpolator(android.view.animation.DecelerateInterpolator())
+                    .start()
+            }
+            .start()
+    }
+
+    private fun appendHologramLog(message: String) {
+        if (!this::hologramLogBox.isInitialized) return
+        runOnUiThread {
+            if (isFinishing || isDestroyed) return@runOnUiThread
+            val timestamp = SimpleDateFormat("HH:mm:ss", Locale.getDefault()).format(Date())
+            val existing = hologramLogBox.text.toString().lineSequence().filter { it.isNotBlank() }.toList()
+            hologramLogBox.text = (existing + "[$timestamp] $message").takeLast(80).joinToString("\n")
+            hologramLogScroll.post { hologramLogScroll.fullScroll(View.FOCUS_DOWN) }
+        }
     }
 
     private fun copyAssetTree(assetPath: String, destination: File) {
@@ -852,6 +924,7 @@ class MainActivity : AppCompatActivity() {
 
     override fun onDestroy() {
         galaxyBackground?.pauseAnimation()
+        stopHologramIndicatorPulse()
         Shizuku.removeRequestPermissionResultListener(shizukuPermissionListener)
         try {
             Shizuku.unbindUserService(shizukuArgs, shizukuConnection, true)
@@ -1143,6 +1216,7 @@ class MainActivity : AppCompatActivity() {
 
     private fun fadeOut(v: View) {
         if (v.visibility != View.VISIBLE) return
+        if (this::screenHologram.isInitialized && v === screenHologram) stopHologramIndicatorPulse()
         v.animate().cancel()
         val offset = 8f * resources.displayMetrics.density
         v.animate()

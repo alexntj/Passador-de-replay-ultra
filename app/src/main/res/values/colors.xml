@@ -15,4 +15,5 @@
     <color name="text_disabled">#666666</color>
     <color name="state_error">#D0D0D0</color>
     <color name="state_success">#FFFFFF</color>
+    <color name="hologram_indicator_green">#39E66B</color>
 </resources>

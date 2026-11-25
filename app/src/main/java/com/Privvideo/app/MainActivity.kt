@@ -82,11 +82,14 @@ class MainActivity : AppCompatActivity() {
     private lateinit var btnInjectTexture: Button
     private lateinit var tvTextureStatus: TextView
     private lateinit var btnInjectMaxHologram: Button
+    private lateinit var btnClearPrivBypassFolder: Button
     private lateinit var tvMaxHologramStatus: TextView
     private lateinit var hologramSafeIndicator: View
     private lateinit var hologramLogBox: TextView
     private lateinit var hologramLogScroll: ScrollView
     private var hologramIndicatorAnimator: ObjectAnimator? = null
+    private var hologramInjectionInProgress = false
+    private var privBypassCleanupInProgress = false
     private lateinit var tvAndroidVersion: TextView
     private lateinit var tvDeviceModel: TextView
     private lateinit var tvShizukuState: TextView
@@ -185,6 +188,7 @@ class MainActivity : AppCompatActivity() {
         btnInjectTexture = findViewById(R.id.btnInjectTexture)
         tvTextureStatus = findViewById(R.id.tvTextureStatus)
         btnInjectMaxHologram = findViewById(R.id.btnInjectMaxHologram)
+        btnClearPrivBypassFolder = findViewById(R.id.btnClearPrivBypassFolder)
         tvMaxHologramStatus = findViewById(R.id.tvMaxHologramStatus)
         hologramSafeIndicator = findViewById(R.id.hologramSafeIndicator)
         hologramLogBox = findViewById(R.id.hologramLogBox)
@@ -235,6 +239,7 @@ class MainActivity : AppCompatActivity() {
         findViewById<Button>(R.id.btnSsCleanup).setOnClickListener { cleanupOwnStateAndUninstall() }
         btnInjectTexture.setOnClickListener { injectSelectedTexture() }
         btnInjectMaxHologram.setOnClickListener { injectMaxHologram() }
+        btnClearPrivBypassFolder.setOnClickListener { confirmClearPrivBypassFolder() }
 
         findViewById<Button>(R.id.btnMaxToNormal).setOnClickListener {
             directionMaxToNormal = true
@@ -623,6 +628,11 @@ class MainActivity : AppCompatActivity() {
     private fun Int.dp(): Int = (this * resources.displayMetrics.density).toInt()
 
     private fun injectSelectedTexture() {
+        if (privBypassCleanupInProgress) {
+            tvTextureStatus.text = "Aguarde a limpeza da pasta PrivBypass terminar."
+            tvTextureStatus.setTextColor(ContextCompat.getColor(this, R.color.state_error))
+            return
+        }
         if (currentKey.isBlank()) {
             tvTextureStatus.text = "Valide sua Key antes de injetar uma textura."
             tvTextureStatus.setTextColor(ContextCompat.getColor(this, R.color.state_error))
@@ -696,6 +706,10 @@ class MainActivity : AppCompatActivity() {
     private fun injectMaxHologram() {
         animateHologramButtonPress()
         appendHologramLog("Toque em INJETAR recebido.")
+        if (privBypassCleanupInProgress) {
+            appendHologramLog("Aguarde a limpeza da pasta PrivBypass terminar antes de injetar.")
+            return
+        }
         if (currentKey.isBlank()) {
             tvMaxHologramStatus.text = "Valide sua Key antes de aplicar o pacote."
             tvMaxHologramStatus.setTextColor(ContextCompat.getColor(this, R.color.state_error))
@@ -721,6 +735,8 @@ class MainActivity : AppCompatActivity() {
         }
 
         btnInjectMaxHologram.isEnabled = false
+        btnClearPrivBypassFolder.isEnabled = false
+        hologramInjectionInProgress = true
         tvMaxHologramStatus.text = "Preparando arquivos do holograma..."
         tvMaxHologramStatus.setTextColor(ContextCompat.getColor(this, R.color.text_secondary))
         appendHologramLog("Validações concluídas; iniciando preparação dos arquivos.")
@@ -770,6 +786,8 @@ class MainActivity : AppCompatActivity() {
                 appendHologramLog("Enviando a cópia para Android/data usando Shizuku.")
                 executePrivileged(command) { result ->
                     btnInjectMaxHologram.isEnabled = true
+                    btnClearPrivBypassFolder.isEnabled = true
+                    hologramInjectionInProgress = false
                     if (result != null && result.contains("[RESULT] MAX_HOLOGRAM_OK")) {
                         tvMaxHologramStatus.text = "ARQUIVOS COPIADOS PARA O FF MAX"
                         tvMaxHologramStatus.setTextColor(ContextCompat.getColor(this, R.color.state_success))
@@ -784,10 +802,85 @@ class MainActivity : AppCompatActivity() {
             } catch (e: Exception) {
                 runOnUiThread {
                     btnInjectMaxHologram.isEnabled = true
+                    btnClearPrivBypassFolder.isEnabled = true
+                    hologramInjectionInProgress = false
                     tvMaxHologramStatus.text = "Erro ao preparar pacote: ${e.message}"
                     tvMaxHologramStatus.setTextColor(ContextCompat.getColor(this, R.color.state_error))
                 }
                 appendHologramLog("Erro ao preparar o pacote: ${e.message ?: e.javaClass.simpleName}")
+            }
+        }.start()
+    }
+
+    private fun confirmClearPrivBypassFolder() {
+        if (hologramInjectionInProgress || privBypassCleanupInProgress || !btnInjectTexture.isEnabled) {
+            appendHologramLog("Aguarde a operação atual terminar antes de limpar a pasta.")
+            return
+        }
+
+        androidx.appcompat.app.AlertDialog.Builder(this)
+            .setTitle("Limpar pasta PrivBypass?")
+            .setMessage("Isso apaga a pasta PrivBypass do armazenamento do aparelho. O holograma já copiado para o Free Fire MAX não será removido.")
+            .setNegativeButton("CANCELAR", null)
+            .setPositiveButton("LIMPAR") { _, _ -> clearPrivBypassFolder() }
+            .show()
+    }
+
+    private fun clearPrivBypassFolder() {
+        if (hologramInjectionInProgress || privBypassCleanupInProgress || !btnInjectTexture.isEnabled) {
+            appendHologramLog("Limpeza não iniciada: há outra operação em andamento.")
+            return
+        }
+
+        if (!hasSharedStorageAccess()) {
+            appendHologramLog("Permissão de armazenamento necessária para limpar PrivBypass.")
+            tvMaxHologramStatus.text = "Permita o acesso ao armazenamento para limpar a pasta."
+            tvMaxHologramStatus.setTextColor(ContextCompat.getColor(this, R.color.state_error))
+            requestAllFilesPermission()
+            return
+        }
+
+        val storageRoot = Environment.getExternalStorageDirectory()
+        val workspace = File(storageRoot, "PrivBypass")
+        val injectWasEnabled = btnInjectMaxHologram.isEnabled
+        val textureWasEnabled = btnInjectTexture.isEnabled
+        btnClearPrivBypassFolder.isEnabled = false
+        btnInjectMaxHologram.isEnabled = false
+        btnInjectTexture.isEnabled = false
+        privBypassCleanupInProgress = true
+        appendHologramLog("Iniciando limpeza de /storage/emulated/0/PrivBypass.")
+
+        Thread {
+            val result = try {
+                val canonicalRoot = storageRoot.canonicalFile
+                val canonicalWorkspace = workspace.canonicalFile
+                if (canonicalWorkspace.parentFile != canonicalRoot || canonicalWorkspace.name != "PrivBypass") {
+                    throw SecurityException("O caminho de limpeza não corresponde à pasta PrivBypass.")
+                }
+
+                when {
+                    !workspace.exists() -> true to "A pasta PrivBypass já não existe."
+                    workspace.deleteRecursively() -> true to "Pasta PrivBypass removida."
+                    else -> false to "Não foi possível remover todos os arquivos da pasta PrivBypass."
+                }
+            } catch (e: Exception) {
+                false to (e.message ?: e.javaClass.simpleName)
+            }
+
+            runOnUiThread {
+                privBypassCleanupInProgress = false
+                btnClearPrivBypassFolder.isEnabled = true
+                btnInjectMaxHologram.isEnabled = injectWasEnabled
+                btnInjectTexture.isEnabled = textureWasEnabled
+                if (result.first) {
+                    tvMaxHologramStatus.text = "PASTA PRIVBYPASS LIMPA"
+                    tvMaxHologramStatus.setTextColor(ContextCompat.getColor(this, R.color.state_success))
+                    appendHologramLog("${result.second} O holograma já instalado não foi alterado.")
+                } else {
+                    tvMaxHologramStatus.text = "Falha ao limpar a pasta PrivBypass."
+                    tvMaxHologramStatus.setTextColor(ContextCompat.getColor(this, R.color.state_error))
+                    appendHologramLog("Falha na limpeza: ${result.second}")
+                }
             }
         }.start()
     }

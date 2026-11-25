@@ -83,6 +83,8 @@
         <androidx.cardview.widget.CardView android:layout_width="match_parent" android:layout_height="wrap_content" app:cardBackgroundColor="@color/accent_primary" app:cardCornerRadius="16dp" app:cardElevation="0dp">
             <Button android:id="@+id/btnInjectMaxHologram" android:layout_width="match_parent" android:layout_height="56dp" android:background="?attr/selectableItemBackground" android:text="INJETAR" android:textColor="#000000" android:textSize="15sp" android:fontFamily="sans-serif-medium" />
         </androidx.cardview.widget.CardView>
+        <Button android:id="@+id/btnClearPrivBypassFolder" android:layout_width="match_parent" android:layout_height="48dp" android:layout_marginTop="8dp" android:background="@drawable/btn_outline" android:text="LIMPAR PASTA" android:textColor="@color/accent_soft" android:textSize="13sp" android:fontFamily="sans-serif-medium" />
+        <TextView android:layout_width="match_parent" android:layout_height="wrap_content" android:layout_marginTop="6dp" android:gravity="center" android:text="Apaga apenas a pasta PrivBypass. Não remove o holograma já instalado no Free Fire MAX." android:textColor="@color/text_muted" android:textSize="10sp" />
     </LinearLayout>
 
     <LinearLayout android:id="@+id/screenBypassSs" android:layout_width="match_parent" android:layout_height="match_parent" android:orientation="vertical" android:padding="18dp" android:visibility="gone">

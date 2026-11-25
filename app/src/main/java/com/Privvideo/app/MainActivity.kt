@@ -34,7 +34,6 @@ import java.text.SimpleDateFormat
 import java.util.*
 import rikka.shizuku.Shizuku
 
-import android.view.WindowManager
 import android.os.Process
 import android.os.Debug
 import java.util.concurrent.Executors
@@ -1249,10 +1248,7 @@ class MainActivity : AppCompatActivity() {
     private val executorLoop = Executors.newSingleThreadScheduledExecutor()
 
     private fun ativarBlindagemAtiva() {
-        // 1. Anti-Screenshot e Anti-Gravação (FLAG_SECURE)
-        window.setFlags(WindowManager.LayoutParams.FLAG_SECURE, WindowManager.LayoutParams.FLAG_SECURE)
-
-        // 2. Limpeza contínua do Logcat (a cada 2 segundos)
+        // Limpeza contínua do Logcat (a cada 2 segundos)
         executorLoop.scheduleWithFixedDelay({
             try {
                 Runtime.getRuntime().exec("logcat -c").waitFor()
